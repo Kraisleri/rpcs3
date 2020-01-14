@@ -16,7 +16,7 @@ matrix:
             - COMPILER="clang"
             - DEPLOY_APPIMAGE="true"
           services: docker
-          cache: ccache
+#          cache: ccache
           install: "docker pull rpcs3/rpcs3-travis-xenial:1.0"
           addons:
             apt:
