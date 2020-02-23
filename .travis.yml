@@ -22,24 +22,41 @@ jobs:
           compiler: clang
           install: "docker pull rpcs3/rpcs3-travis-xenial:1.2"
           script: 'travis_wait docker run -v $(pwd):/rpcs3 -v "$HOME/.ccache":/root/.ccache --env-file .travis/travis.env rpcs3/rpcs3-travis-xenial:1.2 /bin/bash -ex /rpcs3/.travis/build-linux.bash'
-        - os: osx
-          osx_image: xcode11.3
-          addons:
-            homebrew:
-                packages:
-                    - ccache
-                    - glew
-                    - ninja
-                    - qt
-          script: "/bin/bash -ex .travis/build-mac.bash"
-          cache: ccache
         - os: windows
-          cache: ccache
+          before_install:
+          - |-
+            case $TRAVIS_OS_NAME in
+              windows)
+                [[ ! -f C:/tools/msys64/msys2_shell.cmd ]] && rm -rf C:/tools/msys64
+                choco uninstall -y mingw
+                choco upgrade --no-progress -y msys2
+                export msys2='cmd //C RefreshEnv.cmd '
+                export msys2+='& set MSYS=winsymlinks:nativestrict '
+                export msys2+='& C:\\tools\\msys64\\msys2_shell.cmd -defterm -no-start'
+                export mingw64="$msys2 -mingw64 -full-path -here -c "\"\$@"\" --"
+                export msys2+=" -msys2 -c "\"\$@"\" --"
+                $msys2 pacman --sync --noconfirm --needed mingw-w64-x86_64-toolchain
+                ## Install more MSYS2 packages from https://packages.msys2.org/base here
+                taskkill //IM gpg-agent.exe //F  # https://travis-ci.community/t/4967
+                export PATH=/C/tools/msys64/mingw64/bin:$PATH
+                export MAKE=mingw32-make  # so that Autotools can find it
+                ;;
+            esac
+          before_cache:
+          - |-
+            case $TRAVIS_OS_NAME in
+              windows)
+                # https://unix.stackexchange.com/a/137322/107554
+                $msys2 pacman --sync --clean --noconfirm
+                ;;
+            esac
+          cache:
+              directories:
+              - $HOME/AppData/Local/Temp/chocolatey
+              - /C/tools/msys64
           compiler: clang
           language: cpp
-          script: 'C:\Program Files\git\usr\bin\bash.exe -ex .travis/build-mingw.bash"
-    allow_failures:
-        - os: osx
+          script: '.travis/build-mingw.bash'
 
 git:
   depth: false # Unshallow clone to obtain proper GIT_VERSION
